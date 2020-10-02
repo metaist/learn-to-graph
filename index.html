@@ -2,6 +2,9 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta http-equi="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <title>Learn Graphing</title>
     <script
       src="https://code.jquery.com/jquery-3.5.1.min.js"
@@ -9,18 +12,41 @@
       crossorigin="anonymous"
     ></script>
     <script src="jquery.flot.js"></script>
+    <script src="jquery.mousewheel.js"></script>
+    <script src="jquery.event.drag.js"></script>
     <style>
       #container {
         position: absolute;
-        top: 0;
+        top: 2rem;
         bottom: 0;
         left: 0;
         right: 0;
         margin: 1rem;
       }
+
+      .x1Label,
+      .y1Label {
+        /* fill: #224499; */
+        font-size: 20px;
+        font-family: Tahoma, Geneva, sans-serif;
+      }
     </style>
   </head>
   <body>
+    <label for="draw_line"
+      ><input id="draw_line" type="checkbox" checked /> draw line between
+      points</label
+    >
+    <label for="mark_major"
+      ><input id="mark_major" type="checkbox" checked /> major ticks</label
+    >
+    |
+    <label for="x_min">X min <input id="x_min" class="val" size="2" /></label>
+    <label for="x_max">X max <input id="x_max" class="val" size="2" /></label>
+    |
+    <label for="y_min">Y min <input id="y_min" class="val" size="2" /></label>
+    <label for="y_max">Y max <input id="y_max" class="val" size="2" /></label>
+
     <div id="container"></div>
     <script>
       var app = {
@@ -30,35 +56,116 @@
         selected: null,
         dragging: false,
 
+        x_min: -5,
+        x_max: 5,
+        y_min: -5,
+        y_max: 5,
+
         points: {
-          points: { show: true, fillColor: "black" },
+          color: "red",
+          points: { show: true, radius: 5, fillColor: "red" },
+          lines: { show: true },
           data: [],
         },
 
         options: {
-          xaxis: { show: true, autoScale: "none", min: -5, max: 5 },
-          yaxis: { show: true, autoScale: "none", min: -5, max: 5 },
-          grid: { clickable: true, autoHighlight: false },
+          // pan: { interactive: true },
+          // zoom: { interactive: true },
+          xaxis: {
+            show: true,
+            axisLabel: "X",
+            autoScale: "none",
+            min: -5,
+            max: 5,
+          },
+          yaxis: {
+            show: true,
+            axisLabel: "Y",
+            autoScale: "none",
+            min: -5,
+            max: 5,
+          },
+          grid: {
+            clickable: true,
+            autoHighlight: false,
+          },
         },
 
         init: function () {
           app.plot = $.plot(app.$dom, [app.points], app.options);
           app.$dom.on({
-            // "click": app.click,
             dblclick: app.dblclick,
+            touchevent: app.dblclick,
             mousedown: app.drag_start,
+            plotzoom: () => {
+              app.debug && console.log("plotzoom");
+              app.update_textboxes();
+              // app.update_values();
+            },
+          });
+
+          $(".val").change(app.update_values);
+
+          $("#draw_line").click(function () {
+            app.points.lines.show = $("#draw_line").is(":checked");
+            app.redraw();
+          });
+
+          $("#mark_major").click(function () {
+            let ticks = $("#mark_major").is(":checked") ? "major" : "endpoints";
+            app.plot
+              .getXAxes()
+              .concat(app.plot.getYAxes())
+              .forEach((axis) => (axis.options.showTickLabels = ticks));
+            app.redraw();
           });
 
           $(window).on({
             resize: app.resize,
             keydown: app.keydown,
           });
+
+          app.update_textboxes();
+          app.update_values();
           return app;
+        },
+
+        update_textboxes: function () {
+          app.debug && console.log("update_textboxes");
+
+          let xaxis = app.plot.getXAxes()[0].options;
+          let yaxis = app.plot.getYAxes()[0].options;
+          app.x_min = xaxis.min;
+          app.x_max = xaxis.max;
+          app.y_min = yaxis.min;
+          app.y_max = yaxis.max;
+
+          let vals = ["x_min", "x_max", "y_min", "y_max"];
+          vals.forEach((val) => $(`#${val}`).val(app[val]));
+
+          app.redraw();
+        },
+
+        update_values: function () {
+          app.debug && console.log("update_values");
+
+          let vals = ["x_min", "x_max", "y_min", "y_max"];
+          vals.forEach((val) => (app[val] = $(`#${val}`).val()));
+
+          let xaxis = app.plot.getXAxes()[0].options;
+          let yaxis = app.plot.getYAxes()[0].options;
+          xaxis.min = app.x_min;
+          xaxis.max = app.x_max;
+          yaxis.min = app.y_min;
+          yaxis.max = app.y_max;
+
+          app.redraw();
         },
 
         add: function (x, y) {
           app.debug && console.log("add", x, y);
           app.points.data.push([x, y]);
+          app.points.data = app.points.data.sort();
           app.redraw();
           return app;
         },
@@ -87,8 +194,22 @@
         },
 
         redraw: function () {
+          let opt = app.plot.getOptions();
+          opt.grid.markings = [
+            {
+              xaxis: { from: app.x_min, to: app.x_max },
+              yaxis: { from: 0, to: 0 },
+              color: "green",
+            },
+            {
+              xaxis: { from: 0, to: 0 },
+              yaxis: { from: app.y_min, to: app.y_max },
+              color: "green",
+            },
+          ];
+
           app.plot.setData([app.points]);
-          app.plot.setupGrid(false);
+          app.plot.setupGrid(true);
           app.plot.draw();
           return app;
         },
@@ -102,10 +223,6 @@
             top: e.offsetY - offset.top,
           });
           return { x: pos.x, y: pos.y };
-        },
-
-        click: function (e, pos, item) {
-          // item ? app.select(item) : app.unselect().add(pos.x, pos.y);
         },
 
         dblclick: function (e) {
