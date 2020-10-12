@@ -14,10 +14,11 @@
     <script src="jquery.flot.js"></script>
     <script src="jquery.mousewheel.js"></script>
     <script src="jquery.event.drag.js"></script>
+    <script src="html2canvas.min.js"></script>
     <style>
       #container {
         position: absolute;
-        top: 2rem;
+        top: 3rem;
         bottom: 0;
         left: 0;
         right: 0;
@@ -33,20 +34,26 @@
     </style>
   </head>
   <body>
-    <label for="draw_line"
-      ><input id="draw_line" type="checkbox" checked /> draw line between
-      points</label
-    >
-    <label for="mark_major"
-      ><input id="mark_major" type="checkbox" checked /> major ticks</label
-    >
-    |
-    <label for="x_min">X min <input id="x_min" class="val" size="2" /></label>
-    <label for="x_max">X max <input id="x_max" class="val" size="2" /></label>
-    |
-    <label for="y_min">Y min <input id="y_min" class="val" size="2" /></label>
-    <label for="y_max">Y max <input id="y_max" class="val" size="2" /></label>
+    <p>
+      <label for="student_name">Your name:</label> <input id="student_name" />
+      <label for="problem_name">Problem:</label> <input id="problem_name" />
+      <br />
+      <label for="draw_line"
+        ><input id="draw_line" type="checkbox" checked /> draw line between
+        points</label
+      >
+      <label for="mark_major"
+        ><input id="mark_major" type="checkbox" checked /> major ticks</label
+      >
+      |
+      <label for="x_min">X min <input id="x_min" class="val" size="2" /></label>
+      <label for="x_max">X max <input id="x_max" class="val" size="2" /></label>
+      |
+      <label for="y_min">Y min <input id="y_min" class="val" size="2" /></label>
+      <label for="y_max">Y max <input id="y_max" class="val" size="2" /></label>
 
+      <button id="screenshot" title="Screenshot">📷</button>
+    </p>
     <div id="container"></div>
     <script>
       var app = {
@@ -119,6 +126,8 @@
               .forEach((axis) => (axis.options.showTickLabels = ticks));
             app.redraw();
           });
+
+          $("#screenshot").click(app.screenshot);
 
           $(window).on({
             resize: app.resize,
@@ -212,6 +221,27 @@
           app.plot.setupGrid(true);
           app.plot.draw();
           return app;
+        },
+
+        screenshot: function () {
+          html2canvas(document.body).then((canvas) => {
+            console.log(canvas);
+            var uri = canvas.toDataURL();
+            var name = `${$("#student_name").val()}-${$(
+              "#problem_name"
+            ).val()}`.replace(/[^A-Za-z0-9.]/g, "-");
+            var file = `graph-${name}.png`;
+            var link = document.createElement("a");
+            if (typeof link.download !== "string") {
+              window.open(uri);
+            } else {
+              link.href = uri;
+              link.download = file;
+              document.body.appendChild(link); // Firefox
+              link.click();
+              document.body.removeChild(link);
+            }
+          });
         },
 
         /// Event Handlers ///
