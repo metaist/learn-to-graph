@@ -1,3 +1,3 @@
 # learn-to-graph
 
-[View here](./index.html).
+[Demo here](https://metaist.github.io/learn-to-graph/).
